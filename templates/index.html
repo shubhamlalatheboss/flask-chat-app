@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat App</title>
+    <!-- Tailwind CSS via CDN (use build step for production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-lg bg-white shadow-lg rounded-lg p-6 mx-4">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Live Chat App</h2>
+        <p class="text-lg mb-4">Your Session Code: <span class="font-mono font-bold text-blue-600">{{ session_code }}</span></p>
+        <div class="mb-4">
+            <label for="target-code" class="block text-sm font-medium text-gray-700">Enter Other User's Session Code:</label>
+            <div class="flex space-x-2">
+                <input type="text" id="target-code" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter code">
+                <button onclick="connectToSession()" class="mt-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Connect</button>
+            </div>
+        </div>
+        <div id="connection-status" class="text-sm text-gray-600 mb-4"></div>
+        <div id="chat-window" class="h-64 bg-gray-50 border border-gray-200 rounded-md p-4 overflow-y-auto mb-4"></div>
+        <div class="flex space-x-2">
+            <input type="text" id="message-input" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Type a message...">
+            <button id="send-button" onclick="sendMessage()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <script>
+        const socket = io({ query: { session_code: "{{ session_code }}" } });
+        const sessionCode = "{{ session_code }}";
+
+        socket.on('connection_status', (data) => {
+            document.getElementById('connection-status').innerText = data.status;
+        });
+
+        socket.on('receive_message', (data) => {
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML += `<p class="${data.message.startsWith('You:') ? 'text-blue-600' : 'text-gray-800'}">${data.message}</p>`;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+
+        function connectToSession() {
+            const targetCode = document.getElementById('target-code').value;
+            if (targetCode) {
+                socket.emit('connect_to_session', { target_code: targetCode });
+            } else {
+                document.getElementById('connection-status').innerText = 'Please enter a session code.';
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message-input').value;
+            if (message) {
+                socket.emit('send_message', { message: message });
+                document.getElementById('message-input').value = '';
+            }
+        }
+
+        // Send message with Enter key
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

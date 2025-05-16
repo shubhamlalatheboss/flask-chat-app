@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat App - Charcoal Black</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@heroicons/vue@2.1.1/dist/20/solid.js" type="module"></script>
+    <style>
+        #chat-window::-webkit-scrollbar { width: 8px; }
+        #chat-window::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-window::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .message { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen font-sans text-gray-200">
+    <div class="flex flex-col h-screen max-w-2xl mx-auto">
+        <header class="bg-gray-800 shadow-lg p-4 flex items-center justify-between sticky top-0 z-10">
+            <div>
+                <h2 class="text-xl font-bold text-white">Live Chat</h2>
+                <p class="text-sm text-teal-400">Session Code: <span class="font-mono">{{ session_code }}</span></p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="text" id="target-code" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 w-32" placeholder="Enter code">
+                <button onclick="connectToSession()" class="px-3 py-1 bg-teal-600 text-white rounded-md hover:bg-teal-700 flex items-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Connect
+                </button>
+            </div>
+        </header>
+        <div id="connection-status" class="text-sm text-gray-400 px-4 py-2 bg-gray-800"></div>
+        <div id="chat-window" class="flex-1 overflow-y-auto p-4 bg-gray-800">
+        </div>
+        <div class="bg-gray-800 p-4 sticky bottom-0">
+            <div class="flex space-x-2">
+                <input type="text" id="message-input" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Type a message...">
+                <button id="send-button" onclick="sendMessage()" class="px-4 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 flex items-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <script>
+        const socket = io({ query: { session_code: "{{ session_code }}" } });
+        const sessionCode = "{{ session_code }}";
+        socket.on('connection_status', (data) => {
+            document.getElementById('connection-status').innerText = data.status;
+        });
+        socket.on('receive_message', (data) => {
+            const chatWindow = document.getElementById('chat-window');
+            const isYou = data.message.startsWith('You:');
+            const messageText = data.message.replace(/^(You|Other): /, '');
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            chatWindow.innerHTML += `
+                <div class="message mb-3 flex ${isYou ? 'justify-end' : 'justify-start'}">
+                    <div class="${isYou ? 'bg-teal-500 text-white' : 'bg-gray-600 text-white'} rounded-lg px-4 py-2 max-w-xs">
+                        <p>${messageText}</p>
+                        <p class="text-xs text-gray-300 mt-1">${timestamp}</p>
+                    </div>
+                </div>
+            `;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+        function connectToSession() {
+            const targetCode = document.getElementById('target-code').value;
+            if (targetCode) {
+                socket.emit('connect_to_session', { target_code: targetCode });
+            } else {
+                document.getElementById('connection-status').innerText = 'Please enter a session code.';
+            }
+        }
+        function sendMessage() {
+            const message = document.getElementById('message-input').value;
+            if (message) {
+                socket.emit('send_message', { message: message });
+                document.getElementById('message-input').value = '';
+            }
+        }
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { sendMessage(); }
+        });
+    </script>
+</body>
+</html>
